@@ -271,6 +271,7 @@
 #define __DEC64_SUBNORMAL_MIN__ 0.000000000000001E-383DD
 #define __DEC128_MANT_DIG__ 34
 #define __LDBL_MIN_10_EXP__ (-4931)
+#define SF_VISIBILITY 1
 #define __SIZEOF_LONG_LONG__ 8
 #define __cpp_user_defined_literals 200809
 #define __GCC_ATOMIC_LLONG_LOCK_FREE 2

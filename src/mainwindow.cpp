@@ -55,8 +55,21 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(ui->pushButtonAddVertex, SIGNAL(clicked(bool)), this, SLOT(slot_splitCubeEdge(bool)));
     connect(ui->pushButtonTriangulate, SIGNAL(clicked(bool)), this, SLOT(slot_triangulateCubeFace(bool)));
 
+    // Connect slot and signal for smooth option
+    connect(ui->pushButtonSmooth, SIGNAL(clicked(bool)), this, SLOT(slot_smoothMesh(bool)));
+
     // Put the mesh into the tree_widget.
     connect(ui->mygl, SIGNAL(SendMesh(Mesh&)), this, SLOT(slot_addMeshToListWidget(Mesh&)));
+
+    // Connect slot and signal for extrude face
+    connect(ui->pushButtonExtrude, SIGNAL(clicked(bool)), this, SLOT(slot_extrudeFace(bool)));
+
+    // Connect slot and signal for load obj
+    connect(ui->pushButtonLoadScene, SIGNAL(clicked(bool)), this, SLOT(on_actionLoad_Scene_triggered(bool)));
+
+    // Connect slot and signal for highlighting vertex
+    connect(ui->mygl, SIGNAL(HighlightVert(QListWidgetItem*)), this, SLOT(slot_highlightVertex(QListWidgetItem*)));
+    connect(ui->mygl, SIGNAL(HighlightFace(QListWidgetItem*)), this, SLOT(slot_highlightFace(QListWidgetItem*)));
 }
 
 MainWindow::~MainWindow()
@@ -224,6 +237,7 @@ void MainWindow::slot_highlightVertex(QListWidgetItem *i)
     ui->mygl->setFocus();
     ui->mygl->m_vertDisplay.updateVertex(vPtr);
     ui->mygl->m_vertDisplay.create();
+    ui->mygl->update();
 }
 
 void MainWindow::slot_highlightFace(QListWidgetItem *i)
@@ -233,6 +247,7 @@ void MainWindow::slot_highlightFace(QListWidgetItem *i)
     ui->mygl->setFocus();
     ui->mygl->m_faceDisplay.updateFace(fPtr);
     ui->mygl->m_vertDisplay.create();
+    ui->mygl->update();
 }
 
 void MainWindow::slot_highlightHalfEdge(QListWidgetItem *i)
@@ -242,6 +257,7 @@ void MainWindow::slot_highlightHalfEdge(QListWidgetItem *i)
     ui->mygl->setFocus();
     ui->mygl->m_halfEdgeDisplay.updateHalfEdge(hePtr);
     ui->mygl->m_halfEdgeDisplay.create();
+    ui->mygl->update();
 }
 
 void MainWindow::slot_splitCubeEdge(bool i)
@@ -258,6 +274,110 @@ void MainWindow::slot_splitCubeEdge(bool i)
 void MainWindow::slot_triangulateCubeFace(bool i)
 {
     ui->mygl->TriangulateFace(ui->mygl->m_faceDisplay.representedFace, ui->mygl->m_Cube);
+    ui->mygl->setFocus();
+    ui->mygl->m_Cube.destroy();
+    ui->mygl->m_Cube.create();
+    ui->mygl->update();
+    emit ui->mygl->SendMesh(ui->mygl->m_Cube);
+}
+
+void MainWindow::slot_smoothMesh(bool i)
+{
+    ui->mygl->m_Cube.Catmull_Clark_Subdivide();
+    ui->mygl->setFocus();
+    ui->mygl->m_Cube.destroy();
+    ui->mygl->m_Cube.create();
+    ui->mygl->update();
+    emit ui->mygl->SendMesh(ui->mygl->m_Cube);
+}
+
+void MainWindow::slot_extrudeFace(bool i)
+{
+    float dis = 3.f;
+    QList<QListWidgetItem*> itemList = ui->facesListWidget->selectedItems();
+    if(itemList.size() != 0){
+        QListWidgetItem* tempI = itemList.at(0);
+        Face* f = dynamic_cast<Face*>(tempI);
+        ui->mygl->m_Cube.ExtrudeFace(f, dis);
+        ui->mygl->setFocus();
+        ui->mygl->m_Cube.destroy();
+        ui->mygl->m_Cube.create();
+        ui->mygl->update();
+        emit ui->mygl->SendMesh(ui->mygl->m_Cube);
+    }
+}
+
+MPolygon MainWindow::LoadOBJ(const QString &file, const QString &polyName)
+{
+    MPolygon p(polyName);
+    QString filepath = file;
+    std::vector<tinyobj::shape_t> shapes; std::vector<tinyobj::material_t> materials;
+    std::string errors = tinyobj::LoadObj(shapes, materials, filepath.toStdString().c_str());
+    std::cout << errors << std::endl;
+    if(errors.size() == 0)
+    {
+        int min_idx = 0;
+        //Read the information from the vector of shape_ts
+        for(unsigned int i = 0; i < shapes.size(); i++)
+        {
+            std::vector<glm::vec4> pos, nor;
+            std::vector<glm::vec2> uv;
+            std::vector<float> &positions = shapes[i].mesh.positions;
+            std::vector<float> &normals = shapes[i].mesh.normals;
+            std::vector<float> &uvs = shapes[i].mesh.texcoords;
+            for(unsigned int j = 0; j < positions.size()/3; j++)
+            {
+                pos.push_back(glm::vec4(positions[j*3], positions[j*3+1], positions[j*3+2],1));
+            }
+            for(unsigned int j = 0; j < normals.size()/3; j++)
+            {
+                nor.push_back(glm::vec4(normals[j*3], normals[j*3+1], normals[j*3+2],0));
+            }
+            for(unsigned int j = 0; j < uvs.size()/2; j++)
+            {
+                uv.push_back(glm::vec2(uvs[j*2], uvs[j*2+1]));
+            }
+            for(unsigned int j = 0; j < pos.size(); j++)
+            {
+                p.AddPVertex(PVertex(pos[j], glm::vec3(255,255,255), nor[j], uv[j]));
+            }
+
+            std::vector<unsigned int> indices = shapes[i].mesh.indices;
+            for(unsigned int j = 0; j < indices.size(); j += 3)
+            {
+                Triangle t;
+                t.m_indices[0] = indices[j] + min_idx;
+                t.m_indices[1] = indices[j+1] + min_idx;
+                t.m_indices[2] = indices[j+2] + min_idx;
+                p.AddTriangle(t);
+            }
+
+            min_idx += pos.size();
+        }
+    }
+    else
+    {
+        //An error loading the OBJ occurred!
+        std::cout << errors << std::endl;
+    }
+    return p;
+}
+
+void MainWindow::on_actionLoad_Scene_triggered(bool ib)
+{
+    std::vector<int> iVec;
+    std::vector<MPolygon> polygons;
+
+    QString filename = QFileDialog::getOpenFileName(0, QString("Load Scene File"),
+                                                    QDir::currentPath().append(QString("../..")),
+                                                    QString("*.obj"));
+    QString name = QString("helloWorld");
+    MPolygon p = LoadOBJ(filename, name);
+
+    ui->mygl->m_Cube.Clear();
+
+    ui->mygl->m_Cube.PolygonToMesh(p);
+
     ui->mygl->setFocus();
     ui->mygl->m_Cube.destroy();
     ui->mygl->m_Cube.create();

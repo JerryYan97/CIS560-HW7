@@ -12,6 +12,8 @@ INPUT(
 ./debug\squareplane.o
 ./debug\halfedge_datastructure.o
 ./debug\primitivedisplay.o
+./debug\polygon.o
+./debug\tiny_obj_loader.o
 ./debug\qrc_glsl.o
 ./debug\moc_mainwindow.o
 ./debug\moc_mygl.o

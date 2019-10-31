@@ -24,6 +24,7 @@ RESOURCES += glsl.qrc
 *-clang*|*-g++* {
     message("Enabling additional warnings")
     CONFIG -= warn_on
+    QMAKE_CXXFLAGS += -g -O0 -DSF_VISIBILITY -fvisibility=hidden -fno-strict-aliasing
     QMAKE_CXXFLAGS += -Wall -Wextra -pedantic -Winit-self
     QMAKE_CXXFLAGS += -Wno-strict-aliasing
     QMAKE_CXXFLAGS += -fno-omit-frame-pointer

@@ -14,7 +14,9 @@ SOURCES += \
     $$PWD/openglcontext.cpp \
     $$PWD/scene/squareplane.cpp \
     $$PWD/halfedge_datastructure.cpp \
-    $$PWD/primitivedisplay.cpp
+    $$PWD/primitivedisplay.cpp \
+    $$PWD/polygon.cpp \
+    $$PWD/tiny_obj_loader.cc
 
 HEADERS += \
     $$PWD/la.h \
@@ -28,4 +30,6 @@ HEADERS += \
     $$PWD/openglcontext.h \
     $$PWD/scene/squareplane.h \
     $$PWD/halfedge_datastructure.h \
-    $$PWD/primitivedisplay.h
+    $$PWD/primitivedisplay.h \
+    $$PWD/polygon.h \
+    $$PWD/tiny_obj_loader.h

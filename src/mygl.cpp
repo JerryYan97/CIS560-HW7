@@ -89,10 +89,14 @@ void MyGL::paintGL()
     // Clear the screen so that we only see newly drawn images
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+    glm::vec3 eye = m_glCamera.eye;
+    glm::mat4 spherecalToWorld = glm::translate(glm::mat4(1.0f), m_glCamera.ref);
+    glm::vec4 eyeWorld = spherecalToWorld * m_glCamera.CameraModelToSpherecal() * glm::vec4(eye.x, eye.y, eye.z, 1);
+
     m_progFlat.setViewProjMatrix(m_glCamera.getViewProj());
-    m_progFlat.setCamPos(m_glCamera.eye);
+    m_progFlat.setCamPos(glm::vec3(eyeWorld.x, eyeWorld.y, eyeWorld.z));
     m_progLambert.setViewProjMatrix(m_glCamera.getViewProj());
-    m_progLambert.setCamPos(m_glCamera.eye);
+    m_progLambert.setCamPos(glm::vec3(eyeWorld.x, eyeWorld.y, eyeWorld.z));
 
 //#define NOPE
 #ifndef NOPE
@@ -103,7 +107,9 @@ void MyGL::paintGL()
     //Note that we have to transpose the model matrix before passing it to the shader
     //This is because OpenGL expects column-major matrices, but you've
     //implemented row-major matrices.
-    glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(-2,0,0)) * glm::rotate(glm::mat4(), 0.25f * 3.14159f, glm::vec3(0,1,0));
+    //glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(-2,0,0)) * glm::rotate(glm::mat4(), 0.25f * 3.14159f, glm::vec3(0,1,0));
+    glm::mat4 model = glm::mat4(1.f);
+    m_Cube.model = model;
     //Send the geometry's transformation matrix to the shader
     m_progLambert.setModelMatrix(model);
     //Draw the example sphere using our lambert shader
@@ -236,6 +242,10 @@ void MyGL::SplitHE(HalfEdge* he, Mesh& iMesh)
     he2->mSymEdge_Ptr = he1b;
     he1b->mSymEdge_Ptr = he2;
 
+    // Set the EdgePtr for v1, v2
+    v1->mEdge_Ptr = he1b;
+    v2->mEdge_Ptr = he2b;
+
     // Push v3, he1b and he2b into the Mesh Datastructure
     iMesh.mVertexList.push_back(std::move(uV3));
     iMesh.mHalfEdgeList.push_back(std::move(uHe1b));
@@ -345,9 +355,97 @@ bool MyGL::CheckPlanar(Face *f)
 
 void MyGL::AdjustMeshPlanar(Mesh &iMesh)
 {
-    for(std::vector<std::unique_ptr<Face>>::iterator fVecPtr = iMesh.mFaceList.begin(); fVecPtr != iMesh.mFaceList.end(); fVecPtr++)
+    for(unsigned int i = 0; i < iMesh.mFaceList.size(); i++)
     {
-        Face* fPtr = fVecPtr->get();
+        Face* fPtr = iMesh.mFaceList.at(i).get();
         CheckPlanar(fPtr);
     }
+}
+
+glm::vec2 MyGL::GetNDCPosition(int ix, int iy)
+{
+    glm::vec2 sPos;
+    sPos.x = (2 * ix / float(this->width())) - 1;
+    sPos.y = 1 - (2 * iy / float(this->height()));
+    return sPos;
+}
+
+glm::vec4 MyGL::GetRayDirction(QMouseEvent *e)
+{
+     glm::vec2 mouseNDCPos = GetNDCPosition(e->x(), e->y());
+     glm::mat4 viewProjMat = this->m_glCamera.getViewProj();
+
+     glm::vec3 eye = m_glCamera.eye;
+
+     glm::mat4 spherecalToWorld = glm::translate(glm::mat4(1.0f), m_glCamera.ref);
+     glm::vec4 eyeWorld = spherecalToWorld * m_glCamera.CameraModelToSpherecal() * glm::vec4(eye.x, eye.y, eye.z, 1);
+     glm::vec4 lookWorldVec4 = glm::inverse(viewProjMat) *
+             glm::vec4(m_glCamera.look.x, m_glCamera.look.y, m_glCamera.look.z, 0);
+     glm::vec3 lookWorldNormal = glm::normalize(glm::vec3(lookWorldVec4.x, lookWorldVec4.y, lookWorldVec4.z));
+
+
+     glm::vec4 ref = glm::vec4(m_glCamera.ref.x, m_glCamera.ref.y, m_glCamera.ref.z, 1);
+
+     glm::vec3 tempH = m_glCamera.H;
+     glm::vec3 tempV = m_glCamera.V;
+     glm::vec4 p = ref + mouseNDCPos.x * glm::vec4(m_glCamera.H.x, m_glCamera.H.y, m_glCamera.H.z, 0) +
+             mouseNDCPos.y * glm::vec4(m_glCamera.V.x, m_glCamera.V.y, m_glCamera.V.z, 0);
+     glm::vec3 ray = glm::vec3(p.x, p.y, p.z) - glm::vec3(eyeWorld.x, eyeWorld.y, eyeWorld.z);
+     ray = glm::normalize(ray);
+     glm::vec4 modelRay = glm::inverse(m_Cube.model) * glm::vec4(ray.x, ray.y, ray.z, 0);
+     return glm::vec4(ray.x, ray.y, ray.z, 1);
+}
+
+
+void MyGL::IntersectionTest(glm::vec4 modelSpaceRay)
+{
+    glm::vec3 eye = m_glCamera.eye;
+    glm::mat4 spherecalToWorld = glm::translate(glm::mat4(1.0f), m_glCamera.ref);
+    glm::vec4 eyeWorld = spherecalToWorld * m_glCamera.CameraModelToSpherecal() * glm::vec4(eye.x, eye.y, eye.z, 1);
+    glm::vec4 eyeModel = eyeWorld;
+
+    float vertexnearestT;
+    Vertex* nearestVert = this->m_Cube.SphereTest(glm::vec3(eyeModel.x, eyeModel.y, eyeModel.z), modelSpaceRay, vertexnearestT);
+
+    float facenearestT;
+    Face* nearestFace = this->m_Cube.FaceTest(glm::vec3(eyeModel.x, eyeModel.y, eyeModel.z), modelSpaceRay, facenearestT);
+
+    if(nearestVert != nullptr && nearestFace != nullptr)
+    {
+        if(vertexnearestT < facenearestT)
+        {
+            std::cout << "pos:" << nearestVert->mPos.x << "," << nearestVert->mPos.y << ","
+                      << nearestVert->mPos.z << std::endl;
+            emit HighlightVert(nearestVert);
+        }
+        else
+        {
+            std::cout << "Activitied Face:" << nearestFace->text().toStdString() << std::endl;
+            emit HighlightFace(nearestFace);
+        }
+    }
+    else
+    {
+        if(nearestVert != nullptr)
+        {
+            std::cout << "pos:" << nearestVert->mPos.x << "," << nearestVert->mPos.y << ","
+                      << nearestVert->mPos.z << std::endl;
+            emit HighlightVert(nearestVert);
+        }
+        if(nearestFace != nullptr)
+        {
+            std::cout << "Activitied Face:" << nearestFace->text().toStdString() << std::endl;
+            emit HighlightFace(nearestFace);
+        }
+    }
+
+}
+
+void MyGL::mousePressEvent(QMouseEvent *e)
+{
+   glm::vec4 rayDir = GetRayDirction(e);
+   std::cout << "rayDir:" << rayDir.x << " " << rayDir.y <<
+             rayDir.z << std::endl;
+   glm::vec4 modelSpaceRay = glm::mat4(1.f) * rayDir;
+   IntersectionTest(modelSpaceRay);
 }

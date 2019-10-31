@@ -12,6 +12,8 @@ INPUT(
 ./release\squareplane.o
 ./release\halfedge_datastructure.o
 ./release\primitivedisplay.o
+./release\polygon.o
+./release\tiny_obj_loader.o
 ./release\qrc_glsl.o
 ./release\moc_mainwindow.o
 ./release\moc_mygl.o

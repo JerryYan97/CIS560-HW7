@@ -46,6 +46,10 @@ public:
     void AdjustMeshPlanar(Mesh& iMesh);
     Face* AddATriangle(Face* f, Mesh& iMesh);
 
+    glm::vec2 GetNDCPosition(int ix, int iy);
+    glm::vec4 GetRayDirction(QMouseEvent *e);
+    void mousePressEvent(QMouseEvent *e);
+    void IntersectionTest(glm::vec4 modelSpaceRay);
 protected:
     void keyPressEvent(QKeyEvent *e);
 
@@ -59,6 +63,9 @@ signals:
     void SendVertexOfHE(QListWidgetItem* v);
     void SendHEOfVertex(QListWidgetItem* he);
     void SendHEOfFace(QListWidgetItem* he);
+
+    void HighlightVert(QListWidgetItem* v);
+    void HighlightFace(QListWidgetItem* f);
 };
 
 

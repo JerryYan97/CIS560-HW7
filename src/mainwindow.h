@@ -2,7 +2,22 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QPixmap>
+#include <QFileDialog>
+#include <QTextStream>
+#include <QJsonObject>
+#include <QJsonDocument>
+#include <QJsonArray>
+#include <iostream>
+#include <QApplication>
+#include <QKeyEvent>
+#include <QImageWriter>
+#include <QDebug>
+#include <QImage>
+#include <QGraphicsScene>
 #include "mygl.h"
+#include "polygon.h"
+#include "tiny_obj_loader.h"
 
 
 namespace Ui {
@@ -19,6 +34,8 @@ public:
 
     ~MainWindow();
 public slots:
+    void slot_extrudeFace(bool i);
+
     void slot_addMeshToListWidget(Mesh& iMesh);
 
     void slot_freeVerticesPinboxes(QListWidgetItem* i);
@@ -40,12 +57,17 @@ public slots:
     void slot_splitCubeEdge(bool i);
     void slot_triangulateCubeFace(bool i);
 
+    void slot_smoothMesh(bool i);
+
+    void on_actionLoad_Scene_triggered(bool i);
+
     void on_actionCamera_Controls_triggered();
 
 private slots:
     void on_actionQuit_triggered();
 
 private:
+    MPolygon LoadOBJ(const QString &file, const QString &polyName);
     Ui::MainWindow *ui;
 };
 
