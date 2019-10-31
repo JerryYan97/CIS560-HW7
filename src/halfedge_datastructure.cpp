@@ -735,9 +735,7 @@ void FindAdjMidpoints(const Vertex* tarVet, std::vector<Vertex*>& adjMidpointsVe
         Face* f = adjFacesVec.at(i);
         HalfEdge* currHE = FindHEinFacePointsToVert(tarVet, f);
         HalfEdge* preHE = FindPreHE(currHE);
-        //HalfEdge* nextHE = currHE->mNextEdge_Ptr;
         adjMidpointsVec.push_back(preHE->mVertex_Ptr);
-        //adjMidpointsVec.push_back(nextHE->mVertex_Ptr);
     }
 }
 
